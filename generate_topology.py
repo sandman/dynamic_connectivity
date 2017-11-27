@@ -61,11 +61,11 @@ def accumulate(iterable, func=operator.add):
 
 
 #Sim parameters
-simTime = 1000
-arrivalsPerUnitTime = 0.100
+simTime = 200
+arrivalsPerUnitTime = 0.700
 avgInterArrivalTime = float(1/float(arrivalsPerUnitTime))
 totalCars = int(simTime/avgInterArrivalTime)
-interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(1000*totalCars)]
+interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(100*totalCars)]
 arrivalTimes = list(accumulate(interArrivalTimes))
 
 #print '[%s]' % ', '.join(map(str, interArrivalTimes))
@@ -87,27 +87,28 @@ for t in range(0,simTime,1):
         for vehi in range(1, arrivalTimes.count(t)+1):
             if np.any(np.greater(capacityPerFloor,occupancy)): #Available parking in garage
                 v = Vehicle()
-                print "Park duration: %d" % v.remainingTime
+                #print "Park duration: %d" % v.remainingTime
                 tmp = np.greater_equal(occupancy, inCoverageCapacity)
                 if np.all(tmp): #UE out of coverage of BS
                     # UE must connect to in coverage UE..
                     # Assign a floor to UE based on prioritized list of floors (this will change for coverage optimized deployment)
-                    print "Adding vehicle out-of-coverage"
+                    #print "Adding vehicle out-of-coverage"
                     v.floor = np.nonzero(tmp)[0][0]
                     #v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
                     G.add_node(v)
                     occupancy[v.floor] = occupancy[v.floor] +1
                     v.connectedList = (n for n in G if G.node[n].floor == v.floor)
+                    print 'Adding out-of-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
                 else:   #UE in coverage of BS..
-                    print "Adding vehicle in-coverage"
-                    v.floor = np.nonzero(tmp==0)[0]
+                    #print "Adding vehicle in-coverage"
+                    v.floor = np.nonzero(tmp==0)[0][0]
                     v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
                     G.add_node(v)
                     occupancy[v.floor] = occupancy[v.floor] +1
                     v.connectedList = (n for n in G if G.node[n].floor == v.floor)
-                    print 'Occupancy: [%s]' % ', '.join(map(str, occupancy))
+                    print 'Adding in-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
 
             else:
                 print "No space available in parking lot!"
@@ -119,13 +120,14 @@ for t in range(0,simTime,1):
             if n.remainingTime <= 0:
                 toBeRemoved.add_node(n)
                 occupancy[n.floor] = occupancy[n.floor] - 1
-                print "Removing vehicle %d" % n.id
+                #print "Removing vehicle %d" % n.id
 
+    #print "Before deletion: %d" % len(G)
     G.remove_nodes_from(toBeRemoved)
+    print "Deleted: %d nodes. Total nodes: %d " % (len(toBeRemoved), (len(G)-1))
     toBeRemoved.clear()
-
     sizeG.append(len(G)-1)
-    print "Number of vehicles: %d" % (len(G) - 1)
+    #print "Number of vehicles: %d" % (len(G) - 1)
 
 print "End of simulation."
 # Results plotting..
