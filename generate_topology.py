@@ -3,7 +3,10 @@ import numpy as np
 import random
 import operator
 import matplotlib.pyplot as plt
+from datetime import datetime
 import math
+
+random.seed(datetime.now())
 
 # Garage related parameters
 floors = 4
@@ -16,8 +19,7 @@ occupancy = np.zeros(floors)
 relayProb = 0.3
 
 #Traffic parameters
-poissonLambda = 1/5 #1/10 # Arrival rate of vehicles per minute
-# Parking duration distribution (Weibull)
+# Parking duration distribution (Weibull) - Data Analytics for Smart Parking Applications http://www.mdpi.com/1424-8220/16/10/1575/pdf
 scale_par = 45.7422
 shape_par = 0.6039
 
@@ -30,8 +32,7 @@ class Vehicle:
         """
         self.id = random.randint(1, 1000)
         #self.active = True
-        self.parkDuration = int(scale_par*np.random.weibull(shape_par))
-        self.remainingTime =  self.parkDuration
+        self.remainingTime =  round(scale_par*np.random.weibull(shape_par))
         self.batteryLevel = 10
         self.relayCap = (0 if random.random() > relayProb else 1)
         self.position = [0,0]
@@ -61,14 +62,14 @@ def accumulate(iterable, func=operator.add):
 
 #Sim parameters
 simTime = 1000
-arrivalsPerUnitTime = 200
+arrivalsPerUnitTime = 0.100
 avgInterArrivalTime = float(1/float(arrivalsPerUnitTime))
 totalCars = int(simTime/avgInterArrivalTime)
-interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(10*totalCars)]
+interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(1000*totalCars)]
 arrivalTimes = list(accumulate(interArrivalTimes))
 
 #print '[%s]' % ', '.join(map(str, interArrivalTimes))
-print '[%s]' % ', '.join(map(str, arrivalTimes))
+#print '[%s]' % ', '.join(map(str, arrivalTimes))
 
 #Init Graph
 G = nx.Graph()
@@ -86,13 +87,13 @@ for t in range(0,simTime,1):
         for vehi in range(1, arrivalTimes.count(t)+1):
             if np.any(np.greater(capacityPerFloor,occupancy)): #Available parking in garage
                 v = Vehicle()
-                print "Park duration: %d" % v.parkDuration
+                print "Park duration: %d" % v.remainingTime
                 tmp = np.greater_equal(occupancy, inCoverageCapacity)
-                if np.all(tmp) == 'True': #UE out of coverage of BS
+                if np.all(tmp): #UE out of coverage of BS
                     # UE must connect to in coverage UE..
                     # Assign a floor to UE based on prioritized list of floors (this will change for coverage optimized deployment)
                     print "Adding vehicle out-of-coverage"
-                    v.floor = tmp.index('True')
+                    v.floor = np.nonzero(tmp)[0][0]
                     #v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
                     G.add_node(v)
@@ -106,6 +107,7 @@ for t in range(0,simTime,1):
                     G.add_node(v)
                     occupancy[v.floor] = occupancy[v.floor] +1
                     v.connectedList = (n for n in G if G.node[n].floor == v.floor)
+                    print 'Occupancy: [%s]' % ', '.join(map(str, occupancy))
 
             else:
                 print "No space available in parking lot!"
@@ -114,7 +116,7 @@ for t in range(0,simTime,1):
     for n in G.nodes():
         if n.id != 0:
             n.remainingTime = n.remainingTime - 1
-            if n.remainingTime == 0:
+            if n.remainingTime <= 0:
                 toBeRemoved.add_node(n)
                 occupancy[n.floor] = occupancy[n.floor] - 1
                 print "Removing vehicle %d" % n.id
@@ -122,10 +124,10 @@ for t in range(0,simTime,1):
     G.remove_nodes_from(toBeRemoved)
     toBeRemoved.clear()
 
-    sizeG.append(G.number_of_nodes())
-    print "Number of vehicles: %d" % len(G)
+    sizeG.append(len(G)-1)
+    print "Number of vehicles: %d" % (len(G) - 1)
 
-
+print "End of simulation."
 # Results plotting..
 plt.grid()
 plt.figure(1)
