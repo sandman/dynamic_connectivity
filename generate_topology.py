@@ -32,7 +32,7 @@ scale_par = 45.7422
 shape_par = 0.6039
 
 #Radio propagation parameters
-ploss = 2.5 # Path Loss Exponent
+ple = 2.5 # Path Loss Exponent
 minSINR = 0 # SINR Threshold in dB
 
 class Vehicle:
@@ -50,7 +50,7 @@ class Vehicle:
         self.position = [0,0,0]
         self.floor = 0
         self.connectedList = []
-        self.transmitPower = 13 # Transmit power in dBm
+        self.transmitPower = 0.02 # Transmit power in W
 
 class BaseStation:
 
@@ -59,7 +59,7 @@ class BaseStation:
         self.active = True
         self.connectedList = []
         self.position = [200, 200, 50]
-        self.transmitPower = 46 # Transmit power in dBm
+        self.transmitPower = 40 # Transmit power in W
 
 # Helper function for vehicle arrival times
 
@@ -134,6 +134,7 @@ for t in range(0,simTime,1):
                         posList.append(n.position)
                     distances = pdist(posList,'euclidean')
                     nDistances = distances[:G.__len__()]
+                    nDistances = v.transmitPower * np.exp(nDistances, -ple)
                     print nDistances
                     G.add_node(v)
                     occupancy[v.floor] = occupancy[v.floor] +1
