@@ -4,6 +4,7 @@ import random
 import operator
 import matplotlib.pyplot as plt
 from datetime import datetime
+from scipy.spatial.distance import pdist
 import math
 
 random.seed(datetime.now())
@@ -30,6 +31,10 @@ relayProb = 0.3
 scale_par = 45.7422
 shape_par = 0.6039
 
+#Radio propagation parameters
+ploss = 2.5 # Path Loss Exponent
+minSINR = 0 # SINR Threshold in dB
+
 class Vehicle:
 
     def __init__(self):
@@ -45,6 +50,7 @@ class Vehicle:
         self.position = [0,0,0]
         self.floor = 0
         self.connectedList = []
+        self.transmitPower = 13 # Transmit power in dBm
 
 class BaseStation:
 
@@ -52,6 +58,8 @@ class BaseStation:
         self.id = 0
         self.active = True
         self.connectedList = []
+        self.position = [200, 200, 50]
+        self.transmitPower = 46 # Transmit power in dBm
 
 # Helper function for vehicle arrival times
 
@@ -121,6 +129,12 @@ for t in range(0,simTime,1):
                     availPositions.remove(v.position) #Remove the selected position from the list of available positions
                     v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
+                    posList = [v.position]
+                    for n in G:
+                        posList.append(n.position)
+                    distances = pdist(posList,'euclidean')
+                    nDistances = distances[:G.__len__()]
+                    print nDistances
                     G.add_node(v)
                     occupancy[v.floor] = occupancy[v.floor] +1
                     v.connectedList = (n for n in G if G.node[n].floor == v.floor)
@@ -141,12 +155,17 @@ for t in range(0,simTime,1):
 
     #print "Before deletion: %d" % len(G)
     G.remove_nodes_from(toBeRemoved)
-    print "Deleted: %d nodes. Total nodes: %d " % (len(toBeRemoved), (len(G)-1))
+    if toBeRemoved:
+        print "Deleted: %d nodes. Total nodes: %d " % (len(toBeRemoved), (len(G)-1))
     toBeRemoved.clear()
     sizeG.append(len(G)-1)
     #print "Number of vehicles: %d" % (len(G) - 1)
 
 print "End of simulation."
+
+A = nx.adjacency_matrix(G)
+print A
+
 # Results plotting..
 plt.grid()
 plt.figure(1)
