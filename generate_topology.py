@@ -130,12 +130,26 @@ for t in range(0,simTime,1):
                     v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
 
-                    posList = [(n.position, n.id) for n in G]
-                    distances = cdist(v.position,posList,'euclidean')
+                    #posList = [(n.position,n.id) for n in G]
+                    #distances = cdist(v.position,[item[0] for item in posList],'euclidean')
+                    posList = [n.position for n in G]
+                    distances = cdist(v.position, posList, 'euclidean')
                     #nDistances = distances[:G.__len__()]
                     rDistances = np.power(distances, -ple)
+                    Pi = v.transmitPower*np.ones(G.__len__())
+                    Pk = [n.transmitPower for n in G]
 
-                    weigh
+                    w_forward = np.multiply(Pi,rDistances)
+                    w_backward = np.multiply(Pk,rDistances)
+
+                    for idx, w in enumerate(w_forward):
+                        tmp = [w_backward[i] for i in range(w_backward.size) if i != idx]
+                        linkForward.append(float(x / float(sum(tmp))))
+                        print "x: %d sum: %f" % (x, sum(tmp))
+
+                    for idx, w in enumerate(w_backward):
+                        tmp
+
 
 
                     #print nDistances
