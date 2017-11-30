@@ -4,7 +4,7 @@ import random
 import operator
 import matplotlib.pyplot as plt
 from datetime import datetime
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import cdist
 import math
 
 random.seed(datetime.now())
@@ -129,14 +129,19 @@ for t in range(0,simTime,1):
                     availPositions.remove(v.position) #Remove the selected position from the list of available positions
                     v.active = True
                     # TODO: Update v.connectedList according to graph status (ex. radio distance..)
-                    posList = [v.position]
-                    for n in G:
-                        posList.append(n.position)
-                    distances = pdist(posList,'euclidean')
-                    nDistances = distances[:G.__len__()]
-                    nDistances = v.transmitPower * np.exp(nDistances, -ple)
-                    print nDistances
+
+                    posList = [(n.position, n.id) for n in G]
+                    distances = cdist(v.position,posList,'euclidean')
+                    #nDistances = distances[:G.__len__()]
+                    rDistances = np.power(distances, -ple)
+
+                    weigh
+
+
+                    #print nDistances
                     G.add_node(v)
+                    elist = [(v, n) for n in G if n.floor == v.floor]
+                    G.add_edges_from(elist)
                     occupancy[v.floor] = occupancy[v.floor] +1
                     v.connectedList = (n for n in G if G.node[n].floor == v.floor)
                     print 'Adding in-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
