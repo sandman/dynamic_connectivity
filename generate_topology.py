@@ -33,7 +33,7 @@ shape_par = 0.6039
 
 #Radio propagation parameters
 ple = 2.5 # Path Loss Exponent
-minSINR = 0 # SINR Threshold in dB
+minSINR = 0.001 # SINR Threshold in W
 
 class Vehicle:
 
@@ -74,13 +74,30 @@ def accumulate(iterable, func=operator.add):
         total = func(total, element)
         yield total
 
+def isLinkEstablished(node1,node2,sinrThres):
+    posList = np.array([p.position for p in G])
+    distances = cdist(np.array([node1.position]), posList, 'euclidean')
+    rDistances = np.power(distances, -ple)
+    Pk = [m.transmitPower for m in G]
+    weights = np.multiply(Pk, rDistances)
+    print 'weights: [%s]' % ', '.join(map(str, weights))
+    signal = node1.transmitPower * cdist(np.array([node1.position]), np.array([node2.position]), 'euclidean')
+    interference = []
+    interference = np.sum([y for i, y in enumerate(weights) if i != node1.id])
+    if interference == 0:
+        return True
+    if signal/interference > sinrThres:
+        return True
+    else:
+        return False
+
 
 #Sim parameters
-simTime = 200
-arrivalsPerUnitTime = 0.700
+simTime = 400
+arrivalsPerUnitTime = 0.9
 avgInterArrivalTime = float(1/float(arrivalsPerUnitTime))
 totalCars = int(simTime/avgInterArrivalTime)
-interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(100*totalCars)]
+interArrivalTimes = [round(random.expovariate(avgInterArrivalTime)) for i in range(400*totalCars)]
 arrivalTimes = list(accumulate(interArrivalTimes))
 
 #print '[%s]' % ', '.join(map(str, interArrivalTimes))
@@ -104,61 +121,22 @@ for t in range(0,simTime,1):
                 v = Vehicle()
                 #print "Park duration: %d" % v.remainingTime
                 tmp = np.greater_equal(occupancy, inCoverageCapacity)
-                if np.all(tmp): #UE out of coverage of BS
-                    # UE must connect to in coverage UE..
-                    # Assign a floor to UE based on prioritized list of floors (this will change for coverage optimized deployment)
-                    #print "Adding vehicle out-of-coverage"
-                    v.floor = np.nonzero(tmp)[0][0]
-                    # idx = capacityPerFloor*v.floor + np.random.randint(capacityPerFloor)
-                    # v.position = availPositions[idx]
 
-                    # Randomly select an available position from the selected floor
-                    v.position = random.choice([item for item in availPositions if item[2] == z_pos[v.floor]])
-                    availPositions.remove(v.position) #Remove the selected position from the list of available positions
+                #print "Adding vehicle in-coverage"
+                v.floor = np.nonzero(tmp==0)[0][0]
+                v.position = random.choice([item for item in availPositions if item[2] == z_pos[v.floor]])
+                availPositions.remove(v.position) #Remove the selected position from the list of available positions
+                v.active = True
+                # TODO: Update v.connectedList according to graph status (ex. radio distance..)
 
-                    #v.active = True
-                    # TODO: Update v.connectedList according to graph status (ex. radio distance..)
-                    G.add_node(v)
-                    occupancy[v.floor] = occupancy[v.floor] +1
-                    v.connectedList = (n for n in G if G.node[n].floor == v.floor)
-                    print 'Adding out-of-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
-                else:   #UE in coverage of BS..
-                    #print "Adding vehicle in-coverage"
-                    v.floor = np.nonzero(tmp==0)[0][0]
-                    v.position = random.choice([item for item in availPositions if item[2] == z_pos[v.floor]])
-                    availPositions.remove(v.position) #Remove the selected position from the list of available positions
-                    v.active = True
-                    # TODO: Update v.connectedList according to graph status (ex. radio distance..)
-
-                    #posList = [(n.position,n.id) for n in G]
-                    #distances = cdist(v.position,[item[0] for item in posList],'euclidean')
-                    posList = [n.position for n in G]
-                    distances = cdist(v.position, posList, 'euclidean')
-                    #nDistances = distances[:G.__len__()]
-                    rDistances = np.power(distances, -ple)
-                    Pi = v.transmitPower*np.ones(G.__len__())
-                    Pk = [n.transmitPower for n in G]
-
-                    w_forward = np.multiply(Pi,rDistances)
-                    w_backward = np.multiply(Pk,rDistances)
-
-                    for idx, w in enumerate(w_forward):
-                        tmp = [w_backward[i] for i in range(w_backward.size) if i != idx]
-                        linkForward.append(float(x / float(sum(tmp))))
-                        print "x: %d sum: %f" % (x, sum(tmp))
-
-                    for idx, w in enumerate(w_backward):
-                        tmp
-
-
-
-                    #print nDistances
-                    G.add_node(v)
-                    elist = [(v, n) for n in G if n.floor == v.floor]
-                    G.add_edges_from(elist)
-                    occupancy[v.floor] = occupancy[v.floor] +1
-                    v.connectedList = (n for n in G if G.node[n].floor == v.floor)
-                    print 'Adding in-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
+                G.add_node(v)
+                G.add_edges_from((v, nbr) for nbr in G if isLinkEstablished(v, nbr, minSINR) and isLinkEstablished(nbr, v, minSINR))
+                #G.add_edges_from(eList)
+                #elist = [(v, n) for n in G if n.floor == v.floor]
+                #G.add_edges_from(elist)
+                occupancy[v.floor] = occupancy[v.floor] +1
+                v.connectedList = (n for n in G if G.node[n].floor == v.floor)
+                print 'Adding in-coverage. Occupancy: [%s]' % ', '.join(map(str, occupancy))
 
             else:
                 print "No space available in parking lot!"
@@ -203,4 +181,8 @@ plt.xticks([1 ,2 ,3 ,4])
 
 
 
+plt.show()
+
+plt.figure(3)
+nx.draw(G)
 plt.show()
